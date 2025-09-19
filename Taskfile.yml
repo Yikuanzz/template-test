@@ -1,0 +1,133 @@
+# https://taskfile.dev
+
+version: "3"
+
+vars:
+  MYSQL_DSN:
+    sh: echo "${MYSQL_DSN:-root:root123@tcp(localhost:3406)/go_template_db}"
+
+tasks:
+  # 格式化代码
+  format:
+    desc: "格式化Go代码"
+    cmds:
+      - task golangci:fmt
+  
+  # 示例：启动生成的应用 (需要先生成应用)
+  # app:start:
+  #   desc: "启动生成的应用"
+  #   cmds:
+  #     - task format
+  #     - go run app/your-service/cmd/main.go
+  
+  # golangci-lint 检查
+  golangci:lint:
+    desc: "运行 golangci-lint 检查"
+    cmds:
+      - golangci-lint run
+
+  # golangci-lint 检查
+  golangci:fmt:
+    desc: "运行 golangci-lint 格式化"
+    cmds:
+      - golangci-lint fmt
+  
+  # 启动所有服务
+  docker:start:
+    desc: "启动所有服务"
+    cmds:
+      - docker compose up -d
+
+  # 停止所有服务
+  docker:stop:
+    desc: "停止所有服务"
+    cmds:
+      - docker compose down
+
+  # 重启所有服务
+  docker:restart:
+    desc: "重启所有服务"
+    cmds:
+      - docker compose restart
+
+  # MySQL Migrator 工具任务
+  # 创建 MySQL 迁移文件
+  migrator:create:
+    desc: "创建新的 MySQL 迁移文件，用法: task migrator:create -- migration_name"
+    dir: tools/migrator
+    cmds:
+      - go run main.go create {{.CLI_ARGS}}
+
+  # 执行 MySQL 迁移 (UP)
+  migrator:up:
+    desc: "执行所有待执行的 MySQL 迁移"
+    dir: tools/migrator
+    cmds:
+      - go run main.go up
+
+  # 回滚 MySQL 迁移 (DOWN)
+  migrator:down:
+    desc: "回滚最后一次 MySQL 迁移"
+    dir: tools/migrator
+    cmds:
+      - go run main.go down
+
+  # 导入 SQL 或 CSV 数据到 MySQL
+  migrator:import:
+    desc: "导入 SQL 或 CSV 文件到 MySQL，用法: task migrator:import -- file_path"
+    dir: tools/migrator
+    cmds:
+      - go run main.go import {{.CLI_ARGS}}
+
+  # 导出 MySQL 数据为 SQL
+  migrator:export:sql:
+    desc: "导出 MySQL 数据为 SQL 文件，用法: task migrator:export:sql -- output_file.sql"
+    dir: tools/migrator
+    cmds:
+      - go run main.go export sql {{.CLI_ARGS}}
+
+  # 导出 MySQL 数据为 CSV
+  migrator:export:csv:
+    desc: "导出 MySQL 数据为 CSV 文件，用法: task migrator:export:csv -- output_directory"
+    dir: tools/migrator
+    cmds:
+      - go run main.go export csv {{.CLI_ARGS}}
+
+  # 显示当前数据库版本
+  migrator:version:
+    desc: "显示当前数据库版本和迁移历史"
+    dir: tools/migrator
+    cmds:
+      - go run main.go version
+
+  # 跳转到指定版本
+  migrator:goto:
+    desc: "跳转到指定版本，用法: task migrator:goto -- version_number"
+    dir: tools/migrator
+    cmds:
+      - go run main.go goto {{.CLI_ARGS}}
+
+  # 执行指定步数的向上迁移
+  migrator:up:steps:
+    desc: "执行指定步数的向上迁移，用法: task migrator:up:steps -- 2"
+    dir: tools/migrator
+    cmds:
+      - go run main.go up {{.CLI_ARGS}}
+
+  # 执行指定步数的向下迁移
+  migrator:down:steps:
+    desc: "执行指定步数的向下迁移，用法: task migrator:down:steps -- 2"
+    dir: tools/migrator
+    cmds:
+      - go run main.go down {{.CLI_ARGS}}
+
+  # GoZH 代码生成工具任务
+  # 生成新的Go应用结构
+  gozh:generate:
+    desc: "生成新的Go应用结构，用法: task gozh:generate -- app/ticketing/admin"
+    dir: tools/gozh
+    cmds:
+      - go run main.go {{.CLI_ARGS}}
+
+ 
+
