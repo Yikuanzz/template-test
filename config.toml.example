@@ -1,32 +1,51 @@
 # 示例配置文件
 # 复制此文件为 config.toml 并根据需要修改
+# 
+# 注意：敏感信息（如密码、密钥等）请通过环境变量或 .env 文件配置
+# 环境变量命名规范：使用大写字母和下划线，如 DB_PASSWORD、REDIS_PASSWORD
 
 [server]
+# 服务器端口
 port = "8080"
-mode = "debug"  # debug, release, test
+# 运行模式: debug, release, test
+mode = "debug"
 
 [database]
-host = "localhost"
-port = "3406"
-user = "root"
-password = "root123"
-dbname = "go_template_db"
+# 数据库连接池配置
+max_open_conns = 25
+max_idle_conns = 10
+conn_max_lifetime = "1h"
+conn_max_idle_time = "30m"
+# 连接超时时间
+connect_timeout = "10s"
+# 查询超时时间
+query_timeout = "30s"
 
 [redis]
-host = "localhost"
-port = "6379"
-password = ""
-db = 0
+# Redis 连接池配置
+pool_size = 10
+min_idle_conns = 5
+max_retries = 3
+dial_timeout = "5s"
+read_timeout = "3s"
+write_timeout = "3s"
 
 [etcd]
-endpoints = ["localhost:2379"]
+# Etcd 连接配置
 dial_timeout = 5
+# 连接保活时间
+keep_alive_time = "30s"
+keep_alive_timeout = "5s"
+# 是否启用 TLS
+tls_enabled = false
 
 [monitoring]
 # Prometheus 配置
 prometheus_namespace = "go_template"
 prometheus_subsystem = "service"
 metrics_path = "/metrics"
+# 指标收集间隔
+collect_interval = "15s"
 
 # Jaeger 配置  
 jaeger_service_name = "go-template-service"
@@ -34,3 +53,40 @@ jaeger_environment = "development"
 jaeger_url = "http://localhost:14268/api/traces"
 jaeger_sample_ratio = 1.0
 jaeger_disabled = false
+
+[logging]
+# 日志配置
+level = "info"           # debug, info, warn, error
+format = "console"       # json, console
+output = "stdout"        # stdout, stderr, file
+# 当 output = "file" 时使用
+filename = "logs/app.log"
+max_size = 100          # MB
+max_age = 30            # days
+max_backups = 3
+compress = true
+
+[security]
+# 安全配置
+# JWT 过期时间（小时）
+jwt_expire_hours = 24
+# 密码加密轮数
+bcrypt_cost = 12
+# API 请求频率限制
+rate_limit_requests = 100
+rate_limit_window = "1m"
+
+[app]
+# 应用配置
+name = "go-template"
+version = "1.0.0"
+# 请求超时时间
+request_timeout = "30s"
+# 优雅关闭超时时间
+shutdown_timeout = "10s"
+
+[cache]
+# 缓存配置
+default_ttl = "1h"
+cleanup_interval = "10m"
+max_memory = "100MB"

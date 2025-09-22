@@ -440,16 +440,25 @@ const configTemplate = `package config
 
 import (
 	"log"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/joho/godotenv"
 )
 
 // Config 应用配置
 type Config struct {
-	Server   ServerConfig   ` + "`toml:\"server\"`" + `
-	Database DatabaseConfig ` + "`toml:\"database\"`" + `
-	Redis    RedisConfig    ` + "`toml:\"redis\"`" + `
-	Etcd     EtcdConfig     ` + "`toml:\"etcd\"`" + `
+	Server     ServerConfig     ` + "`toml:\"server\"`" + `
+	Database   DatabaseConfig   ` + "`toml:\"database\"`" + `
+	Redis      RedisConfig      ` + "`toml:\"redis\"`" + `
+	Etcd       EtcdConfig       ` + "`toml:\"etcd\"`" + `
+	Monitoring MonitoringConfig ` + "`toml:\"monitoring\"`" + `
+	Logging    LoggingConfig    ` + "`toml:\"logging\"`" + `
+	Security   SecurityConfig   ` + "`toml:\"security\"`" + `
+	App        AppConfig        ` + "`toml:\"app\"`" + `
+	Cache      CacheConfig      ` + "`toml:\"cache\"`" + `
 }
 
 // ServerConfig 服务器配置
@@ -460,37 +469,163 @@ type ServerConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host     string ` + "`toml:\"host\"`" + `
-	Port     string ` + "`toml:\"port\"`" + `
-	User     string ` + "`toml:\"user\"`" + `
-	Password string ` + "`toml:\"password\"`" + `
-	DBName   string ` + "`toml:\"dbname\"`" + `
+	MaxOpenConns     int    ` + "`toml:\"max_open_conns\"`" + `
+	MaxIdleConns     int    ` + "`toml:\"max_idle_conns\"`" + `
+	ConnMaxLifetime  string ` + "`toml:\"conn_max_lifetime\"`" + `
+	ConnMaxIdleTime  string ` + "`toml:\"conn_max_idle_time\"`" + `
+	ConnectTimeout   string ` + "`toml:\"connect_timeout\"`" + `
+	QueryTimeout     string ` + "`toml:\"query_timeout\"`" + `
+	// 敏感信息从环境变量获取
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
 }
 
 // RedisConfig Redis配置
 type RedisConfig struct {
-	Host     string ` + "`toml:\"host\"`" + `
-	Port     string ` + "`toml:\"port\"`" + `
-	Password string ` + "`toml:\"password\"`" + `
-	DB       int    ` + "`toml:\"db\"`" + `
+	PoolSize      int    ` + "`toml:\"pool_size\"`" + `
+	MinIdleConns  int    ` + "`toml:\"min_idle_conns\"`" + `
+	MaxRetries    int    ` + "`toml:\"max_retries\"`" + `
+	DialTimeout   string ` + "`toml:\"dial_timeout\"`" + `
+	ReadTimeout   string ` + "`toml:\"read_timeout\"`" + `
+	WriteTimeout  string ` + "`toml:\"write_timeout\"`" + `
+	// 敏感信息从环境变量获取
+	Host     string
+	Port     string
+	Password string
+	DB       int
 }
 
 // EtcdConfig Etcd配置
 type EtcdConfig struct {
-	Endpoints   []string ` + "`toml:\"endpoints\"`" + `
-	DialTimeout int      ` + "`toml:\"dial_timeout\"`" + `
+	DialTimeout        int    ` + "`toml:\"dial_timeout\"`" + `
+	KeepAliveTime      string ` + "`toml:\"keep_alive_time\"`" + `
+	KeepAliveTimeout   string ` + "`toml:\"keep_alive_timeout\"`" + `
+	TLSEnabled         bool   ` + "`toml:\"tls_enabled\"`" + `
+	// 敏感信息从环境变量获取
+	Endpoints []string
+}
+
+// MonitoringConfig 监控配置
+type MonitoringConfig struct {
+	PrometheusNamespace string  ` + "`toml:\"prometheus_namespace\"`" + `
+	PrometheusSubsystem string  ` + "`toml:\"prometheus_subsystem\"`" + `
+	MetricsPath         string  ` + "`toml:\"metrics_path\"`" + `
+	CollectInterval     string  ` + "`toml:\"collect_interval\"`" + `
+	JaegerServiceName   string  ` + "`toml:\"jaeger_service_name\"`" + `
+	JaegerEnvironment   string  ` + "`toml:\"jaeger_environment\"`" + `
+	JaegerURL           string  ` + "`toml:\"jaeger_url\"`" + `
+	JaegerSampleRatio   float64 ` + "`toml:\"jaeger_sample_ratio\"`" + `
+	JaegerDisabled      bool    ` + "`toml:\"jaeger_disabled\"`" + `
+}
+
+// LoggingConfig 日志配置
+type LoggingConfig struct {
+	Level      string ` + "`toml:\"level\"`" + `
+	Format     string ` + "`toml:\"format\"`" + `
+	Output     string ` + "`toml:\"output\"`" + `
+	Filename   string ` + "`toml:\"filename\"`" + `
+	MaxSize    int    ` + "`toml:\"max_size\"`" + `
+	MaxAge     int    ` + "`toml:\"max_age\"`" + `
+	MaxBackups int    ` + "`toml:\"max_backups\"`" + `
+	Compress   bool   ` + "`toml:\"compress\"`" + `
+}
+
+// SecurityConfig 安全配置
+type SecurityConfig struct {
+	JWTExpireHours    int    ` + "`toml:\"jwt_expire_hours\"`" + `
+	BcryptCost        int    ` + "`toml:\"bcrypt_cost\"`" + `
+	RateLimitRequests int    ` + "`toml:\"rate_limit_requests\"`" + `
+	RateLimitWindow   string ` + "`toml:\"rate_limit_window\"`" + `
+	// 敏感信息从环境变量获取
+	JWTSecret string
+}
+
+// AppConfig 应用配置
+type AppConfig struct {
+	Name            string ` + "`toml:\"name\"`" + `
+	Version         string ` + "`toml:\"version\"`" + `
+	RequestTimeout  string ` + "`toml:\"request_timeout\"`" + `
+	ShutdownTimeout string ` + "`toml:\"shutdown_timeout\"`" + `
+}
+
+// CacheConfig 缓存配置
+type CacheConfig struct {
+	DefaultTTL      string ` + "`toml:\"default_ttl\"`" + `
+	CleanupInterval string ` + "`toml:\"cleanup_interval\"`" + `
+	MaxMemory       string ` + "`toml:\"max_memory\"`" + `
 }
 
 // LoadConfig 加载配置文件
-func LoadConfig(filename string) (*Config, error) {
-	var config Config
+func LoadConfig(configFile, envFile string) (*Config, error) {
+	// 加载环境变量
+	if err := godotenv.Load(envFile); err != nil {
+		log.Printf("警告: 无法加载 .env 文件: %v", err)
+	}
 
-	if _, err := toml.DecodeFile(filename, &config); err != nil {
+	// 加载 TOML 配置
+	var config Config
+	if _, err := toml.DecodeFile(configFile, &config); err != nil {
 		log.Printf("加载配置文件失败: %v", err)
 		return nil, err
 	}
 
+	// 从环境变量加载敏感信息
+	loadSensitiveConfig(&config)
+
 	return &config, nil
+}
+
+// loadSensitiveConfig 从环境变量加载敏感配置
+func loadSensitiveConfig(config *Config) {
+	// 数据库敏感信息
+	config.Database.Host = getEnv("DB_HOST", "localhost")
+	config.Database.Port = getEnv("DB_PORT", "3306")
+	config.Database.User = getEnv("DB_USER", "root")
+	config.Database.Password = getEnv("DB_PASSWORD", "")
+	config.Database.DBName = getEnv("DB_NAME", "{{.PackageName}}_db")
+
+	// Redis 敏感信息
+	config.Redis.Host = getEnv("REDIS_HOST", "localhost")
+	config.Redis.Port = getEnv("REDIS_PORT", "6379")
+	config.Redis.Password = getEnv("REDIS_PASSWORD", "")
+	if db, err := strconv.Atoi(getEnv("REDIS_DB", "0")); err == nil {
+		config.Redis.DB = db
+	}
+
+	// Etcd 敏感信息
+	if endpoints := getEnv("ETCD_ENDPOINTS", ""); endpoints != "" {
+		config.Etcd.Endpoints = strings.Split(endpoints, ",")
+	}
+
+	// 安全敏感信息
+	config.Security.JWTSecret = getEnv("JWT_SECRET", "your-secret-key-here")
+
+	// 监控敏感信息
+	config.Monitoring.JaegerURL = getEnv("JAEGER_URL", config.Monitoring.JaegerURL)
+	if sampleRatio, err := strconv.ParseFloat(getEnv("JAEGER_SAMPLE_RATIO", "1.0"), 64); err == nil {
+		config.Monitoring.JaegerSampleRatio = sampleRatio
+	}
+	if disabled, err := strconv.ParseBool(getEnv("JAEGER_DISABLED", "false")); err == nil {
+		config.Monitoring.JaegerDisabled = disabled
+	}
+
+	// 日志配置
+	config.Logging.Level = getEnv("LOG_LEVEL", config.Logging.Level)
+	config.Logging.Format = getEnv("LOG_FORMAT", config.Logging.Format)
+
+	// 服务器模式
+	config.Server.Mode = getEnv("SERVER_MODE", config.Server.Mode)
+}
+
+// getEnv 获取环境变量，如果不存在则返回默认值
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // DefaultConfig 返回默认配置
@@ -501,21 +636,75 @@ func DefaultConfig() *Config {
 			Mode: "debug",
 		},
 		Database: DatabaseConfig{
-			Host:     "localhost",
-			Port:     "3306",
-			User:     "root",
-			Password: "root123",
-			DBName:   "{{.PackageName}}_db",
+			MaxOpenConns:    25,
+			MaxIdleConns:    10,
+			ConnMaxLifetime: "1h",
+			ConnMaxIdleTime: "30m",
+			ConnectTimeout:  "10s",
+			QueryTimeout:    "30s",
+			Host:            "localhost",
+			Port:            "3306",
+			User:            "root",
+			Password:        "",
+			DBName:          "{{.PackageName}}_db",
 		},
 		Redis: RedisConfig{
-			Host:     "localhost",
-			Port:     "6379",
-			Password: "",
-			DB:       0,
+			PoolSize:     10,
+			MinIdleConns: 5,
+			MaxRetries:   3,
+			DialTimeout:  "5s",
+			ReadTimeout:  "3s",
+			WriteTimeout: "3s",
+			Host:         "localhost",
+			Port:         "6379",
+			Password:     "",
+			DB:           0,
 		},
 		Etcd: EtcdConfig{
-			Endpoints:   []string{"localhost:2379"},
-			DialTimeout: 5,
+			DialTimeout:      5,
+			KeepAliveTime:    "30s",
+			KeepAliveTimeout: "5s",
+			TLSEnabled:       false,
+			Endpoints:        []string{"localhost:2379"},
+		},
+		Monitoring: MonitoringConfig{
+			PrometheusNamespace: "go_template",
+			PrometheusSubsystem: "service",
+			MetricsPath:         "/metrics",
+			CollectInterval:     "15s",
+			JaegerServiceName:   "go-template-service",
+			JaegerEnvironment:   "development",
+			JaegerURL:           "http://localhost:14268/api/traces",
+			JaegerSampleRatio:   1.0,
+			JaegerDisabled:      false,
+		},
+		Logging: LoggingConfig{
+			Level:      "info",
+			Format:     "console",
+			Output:     "stdout",
+			Filename:   "logs/app.log",
+			MaxSize:    100,
+			MaxAge:     30,
+			MaxBackups: 3,
+			Compress:   true,
+		},
+		Security: SecurityConfig{
+			JWTExpireHours:    24,
+			BcryptCost:        12,
+			RateLimitRequests: 100,
+			RateLimitWindow:   "1m",
+			JWTSecret:         "your-secret-key-here",
+		},
+		App: AppConfig{
+			Name:            "go-template",
+			Version:         "1.0.0",
+			RequestTimeout:  "30s",
+			ShutdownTimeout: "10s",
+		},
+		Cache: CacheConfig{
+			DefaultTTL:      "1h",
+			CleanupInterval: "10m",
+			MaxMemory:       "100MB",
 		},
 	}
 }

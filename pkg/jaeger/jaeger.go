@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -132,7 +133,7 @@ func (tp *TracingProvider) GinMiddleware() gin.HandlerFunc {
 		// 记录响应信息
 		span.SetAttributes(
 			semconv.HTTPStatusCode(c.Writer.Status()),
-			semconv.HTTPResponseContentLength(int64(c.Writer.Size())),
+			semconv.HTTPResponseContentLength(c.Writer.Size()),
 		)
 
 		// 如果有错误，记录错误信息
@@ -151,7 +152,7 @@ func (tp *TracingProvider) GinMiddleware() gin.HandlerFunc {
 // StartSpan 手动开始一个新的span
 func (tp *TracingProvider) StartSpan(ctx context.Context, operationName string, attrs ...attribute.KeyValue) (context.Context, oteltrace.Span) {
 	if tp.config.Disabled || tp.tracer == nil {
-		return ctx, oteltrace.NoopSpan{}
+		return ctx, oteltrace.SpanFromContext(ctx)
 	}
 
 	return tp.tracer.Start(ctx, operationName, oteltrace.WithAttributes(attrs...))
@@ -160,7 +161,7 @@ func (tp *TracingProvider) StartSpan(ctx context.Context, operationName string, 
 // StartSpanWithOptions 使用自定义选项开始span
 func (tp *TracingProvider) StartSpanWithOptions(ctx context.Context, operationName string, opts ...oteltrace.SpanStartOption) (context.Context, oteltrace.Span) {
 	if tp.config.Disabled || tp.tracer == nil {
-		return ctx, oteltrace.NoopSpan{}
+		return ctx, oteltrace.SpanFromContext(ctx)
 	}
 
 	return tp.tracer.Start(ctx, operationName, opts...)
@@ -192,7 +193,7 @@ func (tp *TracingProvider) RecordError(ctx context.Context, err error, attrs ...
 }
 
 // SetSpanStatus 设置span状态
-func (tp *TracingProvider) SetSpanStatus(ctx context.Context, code oteltrace.StatusCode, description string) {
+func (tp *TracingProvider) SetSpanStatus(ctx context.Context, code codes.Code, description string) {
 	if tp.config.Disabled {
 		return
 	}
